@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `LICENSE` now contains only the standard MIT text so automated license
+  detection recognises it. The derivative-work statement and the upstream
+  copyright and permission notices this project must preserve moved to a
+  dedicated [`NOTICE`](NOTICE) file, which also reproduces the Matt Pocock
+  notice in full.
+
 ## [0.1.0] - 2026-09-21
 
 Initial public release.

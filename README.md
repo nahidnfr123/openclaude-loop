@@ -299,11 +299,11 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, the test contract, and the inv
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE). Upstream copyright and permission notices that this project is obliged to preserve are in [NOTICE](NOTICE).
 
 ## Acknowledgements
 
-openclaude-loop is **based on and inspired by [chaseai-yt/claudex-loop](https://github.com/chaseai-yt/claudex-loop)** by Chase AI, used under the MIT License, with the Codex integration replaced by OpenCode throughout. The upstream authors have not endorsed this project. See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) for exactly what carries over and what is deliberately different, and [LICENSE](LICENSE) for the preserved upstream notices.
+openclaude-loop is **based on and inspired by [chaseai-yt/claudex-loop](https://github.com/chaseai-yt/claudex-loop)** by Chase AI, used under the MIT License, with the Codex integration replaced by OpenCode throughout. The upstream authors have not endorsed this project. See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md) for exactly what carries over and what is deliberately different, and [NOTICE](NOTICE) for the preserved upstream copyright and permission notices.
 
 `CONTEXT-FORMAT.md` and `ADR-FORMAT.md` originate from skills by [Matt Pocock](https://github.com/mattpocock/skills), via claudex-loop, under the MIT License.
 

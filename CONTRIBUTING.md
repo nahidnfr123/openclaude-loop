@@ -83,4 +83,4 @@ Do not open a public issue. See [SECURITY.md](SECURITY.md).
 
 ## License
 
-Contributions are accepted under the [MIT License](LICENSE). This project is a derivative of [claudex-loop](https://github.com/chaseai-yt/claudex-loop); do not remove upstream attribution from `LICENSE`, `ACKNOWLEDGMENTS.md` or `skills/openclaude-loop/THIRD-PARTY-NOTICES.md`.
+Contributions are accepted under the [MIT License](LICENSE). This project is a derivative of [claudex-loop](https://github.com/chaseai-yt/claudex-loop); do not remove upstream attribution from `NOTICE`, `ACKNOWLEDGMENTS.md` or `skills/openclaude-loop/THIRD-PARTY-NOTICES.md`.

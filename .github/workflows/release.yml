@@ -68,8 +68,10 @@ jobs:
           match = re.search(
               r"^## \[%s\][^\n]*\n(.*?)(?=^## \[|\Z)" % re.escape(version),
               text, re.S | re.M)
-          print(match.group(1).strip() if match
-                else f"See CHANGELOG.md for {version}.")
+          body = match.group(1) if match else f"See CHANGELOG.md for {version}."
+          # Drop the trailing link-reference definitions; they render as nothing.
+          body = re.sub(r"\n\[[^\]]+\]:[^\n]*(?=\n|$)", "", body)
+          print(body.strip())
           PY
           cat >> RELEASE_NOTES.md <<'MD'
 

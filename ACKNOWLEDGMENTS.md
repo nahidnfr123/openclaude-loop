@@ -18,7 +18,7 @@ The core ideas are theirs. This project reimplements them against a different se
 
 ## Matt Pocock
 
-`CONTEXT-FORMAT.md` and `ADR-FORMAT.md` were adapted by claudex-loop from skills by [Matt Pocock](https://github.com/mattpocock/skills), used under the MIT License. See [`skills/openclaude-loop/THIRD-PARTY-NOTICES.md`](skills/openclaude-loop/THIRD-PARTY-NOTICES.md).
+`CONTEXT-FORMAT.md` and `ADR-FORMAT.md` were adapted by claudex-loop from skills by [Matt Pocock](https://github.com/mattpocock/skills), used under the MIT License. See [`NOTICE`](NOTICE) and [`skills/openclaude-loop/THIRD-PARTY-NOTICES.md`](skills/openclaude-loop/THIRD-PARTY-NOTICES.md).
 
 ## OpenCode
 

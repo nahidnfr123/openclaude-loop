@@ -774,7 +774,7 @@ class HygieneTests(Base):
         The attribution documents below deliberately name it -- that is the
         licence obligation, and `test_upstream_attribution_is_present` requires it.
         """
-        attribution = {"ACKNOWLEDGMENTS.md", "LICENSE",
+        attribution = {"ACKNOWLEDGMENTS.md", "LICENSE", "NOTICE",
                        "skills/openclaude-loop/THIRD-PARTY-NOTICES.md"}
         meta = {"VALIDATION.md", "scripts/validate.py",
                 "tests/test_runner.py", "tests/fake_opencode.py"}
@@ -820,13 +820,26 @@ class HygieneTests(Base):
                 self.assertNotIn(token, text, f"{relative} references {token}")
 
     def test_upstream_attribution_is_present(self):
+        """LICENSE stays pure MIT so GitHub can detect it; the notices this
+        project is obliged to preserve live in NOTICE."""
         acknowledgments = (ROOT / "ACKNOWLEDGMENTS.md").read_text(encoding="utf-8")
+        notice = (ROOT / "NOTICE").read_text(encoding="utf-8")
         licence = (ROOT / "LICENSE").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        for text in (acknowledgments, licence, readme):
+        for text in (acknowledgments, notice, readme):
             self.assertIn("chaseai-yt/claudex-loop", text)
-        self.assertIn("MIT", licence)
         self.assertIn("based on", acknowledgments.lower())
+        self.assertIn("have not endorsed this project", readme.lower())
+        self.assertIn("not an official anthropic or opencode project", readme.lower())
+        # The upstream copyright holder and permission notice must survive.
+        self.assertIn("Copyright (c) 2026 Chase AI", notice)
+        self.assertIn("Copyright (c) 2026 Matt Pocock", notice)
+        self.assertIn("The above copyright notice and this permission notice", notice)
+        # LICENSE must remain detectable: MIT text and nothing appended.
+        self.assertTrue(licence.startswith("MIT License"))
+        self.assertTrue(licence.rstrip().endswith("SOFTWARE."))
+        for token in ("claudex", "ADDITIONAL", "NOTICE"):
+            self.assertNotIn(token, licence)
 
     def test_no_codex_plugin_directory(self):
         self.assertFalse((ROOT / ".codex-plugin").exists())
