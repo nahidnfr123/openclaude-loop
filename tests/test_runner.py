@@ -724,17 +724,29 @@ class BuildTests(Base):
 # --------------------------------------------------------------------------- proof
 
 class ProofTests(Base):
+    """Proof commands run through the platform shell, so the fixtures are
+    Python scripts rather than shell builtins -- `echo x && exit 3` does not
+    behave identically in sh and cmd.exe."""
+
+    def script(self, name, body):
+        path = self.root / name
+        path.write_text(body, encoding="utf-8")
+        return f'"{sys.executable}" "{path}"'
+
     def test_proof_records_command_exit_code_and_output(self):
-        code, record, _, _, _ = self.invoke(
-            mode="proof", extra=("--proof", "echo proof-marker && exit 0"))
+        command = self.script("proof_ok.py", "print('proof-marker')\n")
+        code, record, _, _, _ = self.invoke(mode="proof", extra=("--proof", command))
         self.assertEqual(code, 0)
         self.assertTrue(record["passed"])
         self.assertEqual(record["exit_code"], 0)
         self.assertIn("proof-marker", record["stdout_tail"])
+        self.assertEqual(record["command"], command)
 
     def test_a_failing_proof_is_recorded_as_failing(self):
-        code, record, _, _, _ = self.invoke(
-            mode="proof", extra=("--proof", "echo boom >&2 && exit 3"))
+        command = self.script(
+            "proof_fail.py",
+            "import sys\nprint('boom', file=sys.stderr)\nsys.exit(3)\n")
+        code, record, _, _, _ = self.invoke(mode="proof", extra=("--proof", command))
         self.assertEqual(code, 1)
         self.assertFalse(record["passed"])
         self.assertEqual(record["exit_code"], 3)
@@ -742,8 +754,9 @@ class ProofTests(Base):
 
     def test_proof_can_bind_to_the_inspected_snapshot(self):
         (self.repo / "existing.py").write_text("changed\n")
+        command = self.script("proof_ok2.py", "print('ok')\n")
         _, record, _, _, _ = self.invoke(
-            mode="proof", extra=("--proof", "echo ok", "--base", self.base))
+            mode="proof", extra=("--proof", command, "--base", self.base))
         self.assertEqual(record["snapshot"]["sha256"], runner.snapshot(self.repo, self.base)["sha256"])
 
 

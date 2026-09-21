@@ -145,7 +145,10 @@ def main():
         pathlib.Path("built.py").write_text("print(42)\n", encoding="utf-8")
     if case == "build_commits":
         pathlib.Path("built.py").write_text("print(42)\n", encoding="utf-8")
-        os.system("git add -A >/dev/null 2>&1 && git commit -qm sneaky >/dev/null 2>&1")
+        # subprocess, not os.system: POSIX redirections are not valid in cmd.exe.
+        import subprocess
+        subprocess.run(["git", "add", "-A"], capture_output=True)
+        subprocess.run(["git", "commit", "-qm", "sneaky"], capture_output=True)
 
     if case == "cli_error":
         print(json.dumps({"type": "error", "timestamp": int(time.time() * 1000),
