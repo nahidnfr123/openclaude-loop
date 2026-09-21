@@ -1,8 +1,45 @@
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
 .venv/
 venv/
-.pytest_cache/
-# Loop artifacts must never be committed: they contain plans, diffs and prompts.
+env/
+*.egg-info/
+
+# Node (not used at runtime; guards contributor tooling)
+node_modules/
+
+# Secrets — never commit provider or GitHub credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+auth.json
+
+# openclaude-loop workflow artifacts.
+# PLAN.md is intentionally NOT ignored: a repository may legitimately commit
+# its own plan. The review log and run artifacts contain prompts, diffs and
+# raw CLI output, so they must never be committed.
 PLAN-REVIEW-LOG.md
 openclaude-runs/
+# Per-run artifact directories are created outside the checkout by design
+# (the runner refuses an artifacts path inside it), so no `openclaude-*`
+# pattern is used here -- it would also match skills/openclaude-loop/.
+
+# Build and coverage output
+dist/
+build/
+coverage/
+.coverage
+htmlcov/
+
+# Logs and scratch
+*.log
+tmp/
+temp/
+
+# OS noise
+.DS_Store
+Thumbs.db

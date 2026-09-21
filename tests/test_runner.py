@@ -780,8 +780,15 @@ class HygieneTests(Base):
                 lowered = line.lower()
                 if "codex" not in lowered and "claudex" not in lowered:
                     continue
-                # A pointer to the upstream project is attribution, not a leftover.
-                if "chaseai-yt/claudex-loop" in lowered:
+                # Naming the upstream project is attribution, not a leftover.
+                if "claudex-loop" in lowered:
+                    continue
+                # An explicit statement that the old agent is NOT needed is the
+                # opposite of a leftover dependency.
+                if any(phrase in lowered for phrase in (
+                        "does not require", "is not required", "not required",
+                        "must not exist", "no codex", "never required",
+                        "replaced by opencode", "instead of codex")):
                     continue
                 offenders.append(f"{relative}:{number}: {line.strip()[:110]}")
         self.assertEqual(offenders, [],

@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest an improvement to the loop
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check [CONTRIBUTING.md](https://github.com/nahidnfr123/openclaude-loop/blob/main/CONTRIBUTING.md)
+        first — it lists invariants (read-only review, explicit sessions, fresh-session inspection,
+        no approval from a failed run) that a proposal must not break.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation you hit, not just the feature you want.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: invariants
+    attributes:
+      label: Compatibility
+      options:
+        - label: This does not require Codex or any agent other than Claude Code and OpenCode.
+          required: true
+        - label: This does not weaken the read-only review boundary or the "whoever builds never grades" invariant.
+          required: true
+        - label: This can be tested without consuming paid model quota, or I have noted why it cannot.
+          required: false

@@ -1,0 +1,97 @@
+name: Release
+
+# Only ever runs for an explicitly pushed version tag. It never commits,
+# never pushes, and never creates a release on an ordinary branch push.
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: verify tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+
+      - name: Configure git for disposable test repositories
+        run: |
+          git config --global user.email "ci@example.invalid"
+          git config --global user.name "CI"
+          git config --global init.defaultBranch main
+
+      - name: Validate manifests
+        run: python scripts/validate.py
+
+      - name: Run contract tests
+        run: python -m unittest discover -s tests -v
+
+      # Refuse to publish a release whose tag disagrees with the manifest.
+      - name: Check tag matches plugin version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST=$(python -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          echo "tag=$TAG manifest=$MANIFEST"
+          if [ "$TAG" != "$MANIFEST" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match plugin.json version $MANIFEST"
+            exit 1
+          fi
+
+  release:
+    name: create release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          python - "$VERSION" > RELEASE_NOTES.md <<'PY'
+          import re, sys
+          version = sys.argv[1]
+          text = open("CHANGELOG.md", encoding="utf-8").read()
+          match = re.search(
+              r"^## \[%s\][^\n]*\n(.*?)(?=^## \[|\Z)" % re.escape(version),
+              text, re.S | re.M)
+          print(match.group(1).strip() if match
+                else f"See CHANGELOG.md for {version}.")
+          PY
+          cat >> RELEASE_NOTES.md <<'MD'
+
+          ## Installation
+
+          ```bash
+          claude plugin marketplace add nahidnfr123/openclaude-loop
+          claude plugin install openclaude-loop@openclaude-loop
+          ```
+
+          Then use `/openclaude-loop:openclaude-loop`, `/openclaude-loop:opencode-review`
+          or `/openclaude-loop:opencode-build`.
+
+          Requires the [OpenCode CLI](https://opencode.ai) with a configured provider.
+          This plugin ships no credentials.
+          MD
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "openclaude-loop $GITHUB_REF_NAME" \
+            --notes-file RELEASE_NOTES.md \
+            --verify-tag

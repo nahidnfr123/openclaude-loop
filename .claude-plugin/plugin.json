@@ -1,11 +1,21 @@
 {
   "name": "openclaude-loop",
+  "displayName": "OpenClaude Loop",
   "version": "0.1.0",
   "description": "Claude Code coordinates recon, requirements, planning and building while the OpenCode CLI independently reviews the plan, inspects the final diff, or implements it. Whoever creates something never grades it. Ships /openclaude-loop:openclaude-loop, /openclaude-loop:opencode-review and /openclaude-loop:opencode-build.",
   "author": {
-    "name": "openclaude-loop contributors"
+    "name": "nahidnfr123",
+    "url": "https://github.com/nahidnfr123"
   },
-  "homepage": "https://github.com/nahidferdous/openclaude-loop",
+  "homepage": "https://github.com/nahidnfr123/openclaude-loop#readme",
+  "repository": "https://github.com/nahidnfr123/openclaude-loop",
   "license": "MIT",
-  "keywords": ["planning", "opencode", "adversarial-review", "cross-agent", "skills"]
+  "keywords": [
+    "planning",
+    "opencode",
+    "adversarial-review",
+    "cross-agent",
+    "code-review",
+    "skills"
+  ]
 }

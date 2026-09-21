@@ -1,0 +1,123 @@
+name: Bug report
+description: Something in the loop behaves incorrectly
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste API keys, tokens, `auth.json`, `.env` contents, or private source code.**
+
+        Run artifacts (`prompt.txt`, `stdout.txt`, `session-export.json`) contain your plan and
+        possibly private code. Sanitize anything you attach.
+
+        For a security vulnerability, do not use this form — see
+        [SECURITY.md](https://github.com/nahidnfr123/openclaude-loop/blob/main/SECURITY.md).
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: openclaude-loop version
+      description: "From `claude plugin details openclaude-loop`, or the version in `.claude-plugin/plugin.json`."
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: claude-version
+    attributes:
+      label: Claude Code version
+      description: "Output of `claude --version`."
+      placeholder: "2.1.278 (Claude Code)"
+    validations:
+      required: true
+
+  - type: input
+    id: opencode-version
+    attributes:
+      label: OpenCode version
+      description: "Output of `opencode --version`."
+      placeholder: "opencode v2.0.11"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.6 (arm64) / Ubuntu 24.04 / Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: OpenCode provider/model
+      description: "Only if relevant. Leave blank if you did not pin a model."
+      placeholder: "anthropic/claude-sonnet-5"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Which part of the loop?
+      options:
+        - Recon or requirements
+        - Plan review (opencode-review)
+        - Build with builder=claude
+        - Build with builder=opencode (opencode-build)
+        - Final inspection
+        - Prerequisites / doctor
+        - Installation or plugin loading
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Include the exact command or slash command you ran.
+      placeholder: |
+        1. Ran `/openclaude-loop:opencode-review` in a repo with ...
+        2. The plan contained ...
+        3. On round 2 ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized output
+      description: |
+        Helpful: the `status`, `error`, `mode`, `session_id`, `exit_code` and `stdout_events`
+        fields from the run's `result.json`, and the output of
+        `python <plugin>/skills/openclaude-loop/scripts/runner.py doctor`.
+        Remove anything private first.
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed all credentials, tokens and private code from this report.
+          required: true
+        - label: This is not a security vulnerability (those go through SECURITY.md).
+          required: true

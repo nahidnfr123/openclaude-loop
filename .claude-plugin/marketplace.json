@@ -1,14 +1,33 @@
 {
   "name": "openclaude-loop",
   "owner": {
-    "name": "openclaude-loop contributors"
+    "name": "nahidnfr123",
+    "url": "https://github.com/nahidnfr123"
   },
+  "description": "Cross-agent plan hardening and build verification for Claude Code: Claude plans and coordinates, the OpenCode CLI independently reviews, and whoever builds never grades.",
   "plugins": [
     {
       "name": "openclaude-loop",
+      "displayName": "OpenClaude Loop",
       "source": "./",
-      "description": "Recon \u2192 requirements \u2192 PLAN.md \u2192 independent OpenCode plan review \u2192 build \u2192 proof \u2192 independent cross-inspection, coordinated from Claude Code."
+      "description": "Recon → requirements → PLAN.md → independent OpenCode plan review → build → proof → independent cross-inspection, coordinated from Claude Code.",
+      "version": "0.1.0",
+      "author": {
+        "name": "nahidnfr123",
+        "url": "https://github.com/nahidnfr123"
+      },
+      "homepage": "https://github.com/nahidnfr123/openclaude-loop#readme",
+      "repository": "https://github.com/nahidnfr123/openclaude-loop",
+      "license": "MIT",
+      "category": "workflow",
+      "keywords": [
+        "planning",
+        "opencode",
+        "adversarial-review",
+        "cross-agent",
+        "code-review",
+        "skills"
+      ]
     }
-  ],
-  "description": "Cross-agent plan hardening and build verification for Claude Code: Claude plans and coordinates, the OpenCode CLI independently reviews, and whoever builds never grades."
+  ]
 }

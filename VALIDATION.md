@@ -46,7 +46,9 @@ Additional coverage beyond the checklist: `--standalone` is always passed (witho
 
 ## Continuous integration
 
-[`.github/workflows/validate.yml`](.github/workflows/validate.yml) runs both commands on `ubuntu-latest`, `macos-latest` and `windows-latest` across Python 3.10 through 3.13.
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs both commands on `ubuntu-latest`, `macos-latest` and `windows-latest` across Python 3.10 and 3.13, plus a manifest-schema job and a secret-scan job over the tree and full history. CI holds no credentials and spends no model quota.
+
+[`.github/workflows/release.yml`](.github/workflows/release.yml) runs only for a pushed `v*` tag. It re-runs validation and the tests, refuses to publish if the tag disagrees with `plugin.json`, and then creates the GitHub Release from the matching `CHANGELOG.md` section.
 
 ## Live smoke tests (optional, consumes quota)
 
@@ -140,7 +142,7 @@ Sections 1–3 and the approval binding were run end to end against the real CLI
 
 | Check | Result |
 |---|---|
-| Review launches, session id captured | pass — `ses_f3b5cc8e4ffed6QX2YoISa6p2N` |
+| Review launches, session id captured | pass — `ses_f3b5cc8e…` |
 | Reviewer reads the real repository | pass — coverage cited `PLAN.md`, `app.py`, a root listing, a `**/*` glob and a grep for references |
 | Intentional flaw found | pass — `REVISE` with `high: Delete-before-write risks irreversible data loss`, plus two medium findings |
 | Same session resumes after revision | pass — round 2 reused the identical session id and judged its own prior findings |
