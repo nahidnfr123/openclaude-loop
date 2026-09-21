@@ -1,0 +1,2 @@
+# Runtime has no dependencies. These are for validation only.
+PyYAML>=6.0

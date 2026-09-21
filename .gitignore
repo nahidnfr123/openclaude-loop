@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+# Loop artifacts must never be committed: they contain plans, diffs and prompts.
+PLAN-REVIEW-LOG.md
+openclaude-runs/

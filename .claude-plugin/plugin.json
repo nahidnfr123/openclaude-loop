@@ -1,0 +1,11 @@
+{
+  "name": "openclaude-loop",
+  "version": "0.1.0",
+  "description": "Claude Code coordinates recon, requirements, planning and building while the OpenCode CLI independently reviews the plan, inspects the final diff, or implements it. Whoever creates something never grades it. Ships /openclaude-loop:openclaude-loop, /openclaude-loop:opencode-review and /openclaude-loop:opencode-build.",
+  "author": {
+    "name": "openclaude-loop contributors"
+  },
+  "homepage": "https://github.com/nahidferdous/openclaude-loop",
+  "license": "MIT",
+  "keywords": ["planning", "opencode", "adversarial-review", "cross-agent", "skills"]
+}
