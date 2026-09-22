@@ -376,16 +376,22 @@ def export_session(prefix: list[str], session: str, env: dict, timeout: int = 12
     """Authoritative transcript recovery; works regardless of stdout completeness."""
     if not SESSION_RE.match(session):
         raise RunError(f"Refusing to export a malformed OpenCode session id: {session!r}")
+    # stdout goes to a file, not a pipe: OpenCode can exit before flushing a
+    # large export into a pipe, leaving truncated JSON (seen at 128 KiB, 224 KiB
+    # and 256 KiB of a 444 KiB export). A regular file is always written in full.
     try:
-        result = subprocess.run(prefix + ["session", "export", session],
-                                capture_output=True, timeout=timeout, env=env)
+        with tempfile.TemporaryFile() as out:
+            result = subprocess.run(prefix + ["session", "export", session],
+                                    stdout=out, stderr=subprocess.PIPE, timeout=timeout, env=env)
+            out.seek(0)
+            stdout = out.read()
     except (OSError, subprocess.SubprocessError) as exc:
         raise RunError(f"OpenCode session could not be resumed or exported: {exc}") from exc
     if result.returncode:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
         raise RunError(f"OpenCode session export failed for {session}: {detail or 'no detail'}")
     try:
-        value = json.loads(result.stdout.decode("utf-8", errors="replace"))
+        value = json.loads(stdout.decode("utf-8", errors="replace"))
     except ValueError as exc:
         raise RunError("OpenCode session export returned unparseable JSON.") from exc
     if not isinstance(value, dict) or not isinstance(value.get("messages"), list):

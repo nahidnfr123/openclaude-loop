@@ -9,6 +9,7 @@ model quota. Behaviour is selected through FAKE_CASE.
 import json
 import os
 import pathlib
+import stat
 import sys
 import time
 
@@ -112,7 +113,11 @@ def main():
         if not path.is_file():
             print("session not found", file=sys.stderr)
             return 1
-        sys.stdout.write(path.read_text(encoding="utf-8"))
+        body = path.read_text(encoding="utf-8")
+        if case == "pipe_truncates" and stat.S_ISFIFO(os.fstat(sys.stdout.fileno()).st_mode):
+            # The real CLI can exit before a large export drains into a pipe.
+            body = body[:len(body) // 2]
+        sys.stdout.write(body)
         return 0
     if argv[:1] != ["run"]:
         print(f"unknown command: {' '.join(argv)}", file=sys.stderr)

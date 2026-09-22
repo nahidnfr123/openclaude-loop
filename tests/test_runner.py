@@ -455,6 +455,11 @@ class OutputTests(Base):
         self.assertEqual(code, 0, record)
         self.assertEqual(record["response"]["verdict"], "APPROVED")
 
+    def test_session_export_is_read_from_a_file_not_a_pipe(self):
+        code, record, _, _, _ = self.invoke(case="pipe_truncates")
+        self.assertEqual(code, 0, record)
+        self.assertEqual(record["response"]["verdict"], "APPROVED")
+
     def test_empty_stdout_recovers_through_session_export(self):
         code, record, path, _, _ = self.invoke(case="empty_stdout")
         self.assertEqual(code, 0, record)
