@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-22
+
 ### Changed
 
 - `LICENSE` now contains only the standard MIT text so automated license
@@ -49,5 +51,6 @@ Initial public release.
 - Two defects found by live testing during development are fixed and regression-tested: OpenCode reports a `succeeded` session outcome, and OpenCode resolves its working directory from `$PWD` rather than the process working directory.
 - Derived from [claudex-loop](https://github.com/chaseai-yt/claudex-loop) with the Codex integration replaced by OpenCode. See [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md).
 
-[Unreleased]: https://github.com/nahidnfr123/openclaude-loop/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/nahidnfr123/openclaude-loop/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/nahidnfr123/openclaude-loop/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/nahidnfr123/openclaude-loop/releases/tag/v0.1.0

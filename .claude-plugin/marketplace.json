@@ -11,7 +11,7 @@
       "displayName": "OpenClaude Loop",
       "source": "./",
       "description": "Recon → requirements → PLAN.md → independent OpenCode plan review → build → proof → independent cross-inspection, coordinated from Claude Code.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "nahidnfr123",
         "url": "https://github.com/nahidnfr123"
