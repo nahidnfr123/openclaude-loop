@@ -29,6 +29,16 @@ SEVERITIES = ("high", "medium", "low")
 FINDING_FIELDS = ("id", "severity", "title", "evidence", "recommendation")
 REQUIRED_RESULT_FIELDS = ("verdict", "summary", "findings", "limitations")
 OPTIONAL_RESULT_FIELDS = ("coverage",)
+# Pinned when --model is omitted; `--model default` defers to OpenCode's own default.
+DEFAULT_MODEL = "opencode/big-pickle"
+OPENCODE_DEFAULT = "default"
+# Tried in order, each in a fresh session, only when a fresh turn on the
+# default model fails on quota or rate limits. Never used with an explicit
+# --model unless --fallback-model names them.
+DEFAULT_FALLBACK_MODELS = ("opencode/mimo-v2.6-flash-free", "opencode/deepseek-v4-flash-free")
+QUOTA_RE = re.compile(r"rate.?limit|quota|too many requests|usage limit|limit (?:reached|exceeded)"
+                      r"|insufficient (?:credit|balance|fund)|out of credits|overloaded|\b(?:402|429)\b",
+                      re.I)
 # OpenCode session identifiers are `ses_` plus a base62 body, not UUIDs.
 SESSION_RE = re.compile(r"^ses_[A-Za-z0-9]{8,}$")
 # Outcomes that mean the turn did not finish. Anything else still has to pass
@@ -599,6 +609,12 @@ def doctor(args) -> int:
                 report["problems"].append(
                     f"Requested OpenCode model is unavailable: {base}. "
                     "openclaude-loop never silently substitutes another model.")
+            report["fallback_models"] = args.fallback_model
+            for fallback in args.fallback_model:
+                if listed.returncode == 0 and names and fallback.split("#", 1)[0] not in names:
+                    report["warnings"].append(
+                        f"Fallback model {fallback} is not listed by `opencode models`; "
+                        "it will be skipped if a fallback is needed.")
     except RunError as exc:
         report["problems"].append(str(exc))
     report["ok"] = not report["problems"]
@@ -691,6 +707,75 @@ def resolve_paths(args) -> tuple[Path, Path]:
     return repo, plan.resolve(strict=True)
 
 
+def attempt(args, mode: str, prefix: list[str], managed: list[str], repo: Path, plan: Path,
+            plan_body: bytes, record: dict, before: dict | None, previous: dict | None,
+            run_dir: Path, model: str | None, variant: str | None):
+    """Run one OpenCode turn on one model and return its checked transcript."""
+    config, env = run_environment(mode, managed, model, repo)
+    save(run_dir / "opencode-config.json", config)
+    record["permission_profile_sha256"] = digest(
+        json.dumps(config["agent"][AGENT_NAME[mode]]["permission"], sort_keys=True).encode())
+    record["agent"] = AGENT_NAME[mode]
+    prompt = build_prompt(args, mode, plan_body.decode("utf-8-sig"), record["plan_sha256"],
+                          plan, before, repo, bool(previous))
+    (run_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
+    argv = run_argv(prefix, mode, model, variant,
+                    previous["session_id"] if previous else None)
+    save(run_dir / "command.json", argv)
+    print(json.dumps({"mode": mode, "agent": AGENT_NAME[mode],
+                      "model": model_argument(model, variant) or "OpenCode default (unresolved)",
+                      "session": previous["session_id"] if previous else "new",
+                      "artifacts": str(run_dir)}, ensure_ascii=False), flush=True)
+
+    code = execute(argv, prompt, repo, run_dir, args.timeout, env)
+    record["exit_code"] = code
+    stdout = (run_dir / "stdout.txt").read_text(encoding="utf-8", errors="replace")
+    stderr = (run_dir / "stderr.txt").read_text(encoding="utf-8", errors="replace")
+    events = parse_events(stdout)
+    record["stdout_events"] = {k: events[k] for k in ("event_types", "malformed_lines", "errors")}
+
+    expected = previous["session_id"] if previous else None
+    session = expected or (events["session_ids"][0] if events["session_ids"] else None)
+    if not session:
+        raise RunError("OpenCode produced no session id. " +
+                       (stderr.strip()[:400] or "Inspect stdout.txt and stderr.txt."))
+    if expected and events["session_ids"] and expected not in events["session_ids"]:
+        raise RunError("OpenCode reported a different session than the one requested; refusing its result.")
+    record["session_id"] = session
+    record["model"] = model_argument(model, variant)
+
+    # The exported transcript is the authority. stdout may be truncated,
+    # interleaved or empty, especially on a resumed multi-step session.
+    export = export_session(prefix, session, env)
+    save(run_dir / "session-export.json", export)
+    summary = export_summary(export, session)
+    record.update(observed_models=summary["observed_models"],
+                  session_outcome=summary["outcome"],
+                  session_directory=summary["session_directory"],
+                  assistant_messages=summary["assistant_messages"])
+    directory = summary["session_directory"]
+    if directory and Path(directory).resolve() != repo:
+        raise RunError(f"OpenCode ran against {directory!r}, not the requested repository. "
+                       "Its result describes the wrong working tree.")
+    record["text_source"] = "session-export"
+    text = summary["text"]
+    if not text.strip() and events["text"].strip():
+        record["text_source"] = "stdout-events"
+        text = events["text"]
+
+    if code:
+        raise RunError(f"OpenCode exited {code}: " +
+                       (summary["assistant_error"] or "; ".join(events["errors"])
+                        or stderr.strip()[:400] or "inspect stdout.txt and stderr.txt."))
+    if summary["assistant_error"]:
+        raise RunError(f"OpenCode reported a failed turn: {summary['assistant_error']}")
+    if events["errors"]:
+        raise RunError("OpenCode emitted an error event: " + "; ".join(events["errors"]))
+    if isinstance(summary["outcome"], str) and summary["outcome"].lower() in FAILED_OUTCOMES:
+        raise RunError(f"OpenCode session outcome was {summary['outcome']!r}, not a completed turn.")
+    return session, summary, events, text, env
+
+
 def run(args) -> int:
     repo, plan = resolve_paths(args)
     mode = args.mode
@@ -713,6 +798,11 @@ def run(args) -> int:
 
     previous = (previous_record(Path(args.resume), repo, plan, mode, args.model, args.variant)
                 if args.resume else None)
+    # A resumed session stays on the model it ran on, fallback included, and
+    # never falls back mid-conversation.
+    candidates = ([(previous.get("model", model_argument(args.model, args.variant)), None)]
+                  if previous else
+                  [(args.model, args.variant)] + [(m, None) for m in args.fallback_model])
     before = snapshot(repo, args.base) if mode == "inspect" else None
 
     if mode == "build":
@@ -742,6 +832,7 @@ def run(args) -> int:
         "builder": args.builder, "inspector": "opencode" if args.builder == "claude" else "claude",
         "repo": str(repo), "plan": str(plan), "plan_sha256": digest(plan_body),
         "requested_model": args.model, "requested_variant": args.variant,
+        "fallback_models": [] if previous else list(args.fallback_model), "fallback_attempts": [],
         "proof_command": args.proof, "base": args.base, "snapshot": before,
         "resumed_from": args.resume, "round": (previous.get("round", 1) + 1) if previous else 1,
         "started_at": time.time(), "artifacts": str(run_dir),
@@ -752,67 +843,52 @@ def run(args) -> int:
         record["cli_version"] = opencode_version(prefix)
         record["executable"] = prefix
         managed = managed_directories(prefix)
-        config, env = run_environment(mode, managed, args.model, repo)
-        save(run_dir / "opencode-config.json", config)
-        record["permission_profile_sha256"] = digest(
-            json.dumps(config["agent"][AGENT_NAME[mode]]["permission"], sort_keys=True).encode())
-        record["agent"] = AGENT_NAME[mode]
-        prompt = build_prompt(args, mode, plan_body.decode("utf-8-sig"), record["plan_sha256"],
-                              plan, before, repo, bool(previous))
-        (run_dir / "prompt.txt").write_text(prompt, encoding="utf-8")
-        argv = run_argv(prefix, mode, args.model, args.variant,
-                        previous["session_id"] if previous else None)
-        save(run_dir / "command.json", argv)
-        print(json.dumps({"mode": mode, "agent": AGENT_NAME[mode],
-                          "model": model_argument(args.model, args.variant) or "OpenCode default (unresolved)",
-                          "session": previous["session_id"] if previous else "new",
-                          "artifacts": str(run_dir)}, ensure_ascii=False), flush=True)
-
-        code = execute(argv, prompt, repo, run_dir, args.timeout, env)
-        record["exit_code"] = code
-        stdout = (run_dir / "stdout.txt").read_text(encoding="utf-8", errors="replace")
-        stderr = (run_dir / "stderr.txt").read_text(encoding="utf-8", errors="replace")
-        events = parse_events(stdout)
-        record["stdout_events"] = {k: events[k] for k in ("event_types", "malformed_lines", "errors")}
-
-        expected = previous["session_id"] if previous else None
-        session = expected or (events["session_ids"][0] if events["session_ids"] else None)
-        if not session:
-            raise RunError("OpenCode produced no session id. " +
-                           (stderr.strip()[:400] or "Inspect stdout.txt and stderr.txt."))
-        if expected and events["session_ids"] and expected not in events["session_ids"]:
-            raise RunError("OpenCode reported a different session than the one requested; refusing its result.")
-        record["session_id"] = session
-
-        # The exported transcript is the authority. stdout may be truncated,
-        # interleaved or empty, especially on a resumed multi-step session.
-        export = export_session(prefix, session, env)
-        save(run_dir / "session-export.json", export)
-        summary = export_summary(export, session)
-        record.update(observed_models=summary["observed_models"],
-                      session_outcome=summary["outcome"],
-                      session_directory=summary["session_directory"],
-                      assistant_messages=summary["assistant_messages"])
-        directory = summary["session_directory"]
-        if directory and Path(directory).resolve() != repo:
-            raise RunError(f"OpenCode ran against {directory!r}, not the requested repository. "
-                           "Its result describes the wrong working tree.")
-        record["text_source"] = "session-export"
-        text = summary["text"]
-        if not text.strip() and events["text"].strip():
-            record["text_source"] = "stdout-events"
-            text = events["text"]
-
-        if code:
-            raise RunError(f"OpenCode exited {code}: " +
-                           (summary["assistant_error"] or "; ".join(events["errors"])
-                            or stderr.strip()[:400] or "inspect stdout.txt and stderr.txt."))
-        if summary["assistant_error"]:
-            raise RunError(f"OpenCode reported a failed turn: {summary['assistant_error']}")
-        if events["errors"]:
-            raise RunError("OpenCode emitted an error event: " + "; ".join(events["errors"]))
-        if isinstance(summary["outcome"], str) and summary["outcome"].lower() in FAILED_OUTCOMES:
-            raise RunError(f"OpenCode session outcome was {summary['outcome']!r}, not a completed turn.")
+        listed, failure = None, None
+        for index, (model, variant) in enumerate(candidates):
+            if index:
+                if listed is None:
+                    result = probe(prefix + ["models"])
+                    listed = (result.stdout.decode("utf-8", errors="replace").split()
+                              if result.returncode == 0 else [])
+                if listed and model.split("#", 1)[0] not in listed:
+                    record["fallback_attempts"].append(
+                        {"model": model, "skipped": "not listed by `opencode models`"})
+                    continue
+            try:
+                session, summary, events, text, env = attempt(
+                    args, mode, prefix, managed, repo, plan, plan_body, record,
+                    before, previous, run_dir, model, variant)
+                break
+            except RunError as exc:
+                last = index == len(candidates) - 1
+                if last or not QUOTA_RE.search(str(exc)):
+                    raise
+                failure = exc
+                if mode == "build" and (git(repo, "status", "--porcelain", "--untracked-files=all").strip()
+                                        or git(repo, "rev-parse", "HEAD").decode().strip() != args.base):
+                    raise RunError(f"{exc} Not falling back: the failed build left changes in the "
+                                   "checkout. Inspect them before starting another builder.") from exc
+                archive = run_dir / f"attempt-{index + 1}"
+                archive.mkdir()
+                for name in ("stdout.txt", "stderr.txt", "session-export.json",
+                             "command.json", "opencode-config.json"):
+                    if (run_dir / name).exists():
+                        (run_dir / name).replace(archive / name)
+                # Facts about the failed turn move into its attempt entry so
+                # none of them can be mistaken for the fallback's.
+                entry = {"model": model_argument(model, variant), "error": str(exc),
+                         "artifacts": str(archive)}
+                for key in ("session_id", "model", "exit_code", "observed_models", "session_outcome",
+                            "session_directory", "assistant_messages", "stdout_events", "text_source"):
+                    if key in record:
+                        entry[key if key != "model" else "sent_model"] = record.pop(key)
+                record["fallback_attempts"].append(entry)
+                save(run_dir / "result.json", record)
+                print(json.dumps({"fallback": "quota or rate limit", "failed_model": model,
+                                  "error": str(exc)[:400]}, ensure_ascii=False), flush=True)
+        else:
+            raise RunError(f"{failure} No fallback model is listed by `opencode models`, "
+                           "so nothing else was tried.")
         if not text.strip():
             raise RunError("OpenCode produced an empty response; no verdict was recorded.")
         (run_dir / "response.txt").write_text(text, encoding="utf-8")
@@ -896,8 +972,15 @@ def main(argv=None) -> int:
     parser.add_argument("--repo", default=".")
     parser.add_argument("--plan", default="PLAN.md")
     parser.add_argument("--builder", choices=("claude", "opencode"), default="claude")
-    parser.add_argument("--model", help="Explicit provider/model. Omitted means the OpenCode default.")
+    parser.add_argument("--model", default=DEFAULT_MODEL,
+                        help=f"provider/model (default: {DEFAULT_MODEL}). "
+                             f"Pass '{OPENCODE_DEFAULT}' to use OpenCode's configured default.")
     parser.add_argument("--variant", help="Model variant; sent as provider/model#variant.")
+    parser.add_argument("--fallback-model", action="append",
+                        help="Model to try, in a fresh session, when a fresh turn fails on quota or "
+                             "rate limits. Repeatable. Defaults to "
+                             f"{', '.join(DEFAULT_FALLBACK_MODELS)} only when --model is omitted.")
+    parser.add_argument("--no-fallback", action="store_true", help="Never fall back to another model.")
     parser.add_argument("--opencode-cli", help="Absolute opencode executable path when PATH is wrong.")
     parser.add_argument("--resume", help="A previous successful result.json; never a guessed session id.")
     parser.add_argument("--feedback", help="Coordinator-authored dispositions or fix list (UTF-8 file).")
@@ -910,6 +993,12 @@ def main(argv=None) -> int:
     parser.add_argument("--artifacts", help="Artifact root; must be outside the target checkout.")
     parser.add_argument("--timeout", type=int, default=900)
     args = parser.parse_args(argv)
+    if args.fallback_model is None:
+        args.fallback_model = list(DEFAULT_FALLBACK_MODELS) if args.model == DEFAULT_MODEL else []
+    if args.no_fallback:
+        args.fallback_model = []
+    if args.model == OPENCODE_DEFAULT:
+        args.model = None
     try:
         if args.timeout < 1:
             raise RunError("Timeout must be a positive number of seconds.")

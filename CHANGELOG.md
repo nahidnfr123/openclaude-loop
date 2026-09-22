@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copyright and permission notices this project must preserve moved to a
   dedicated [`NOTICE`](NOTICE) file, which also reproduces the Matt Pocock
   notice in full.
+- OpenCode runs now default to `opencode/big-pickle` when no model is given.
+  Pass `--model default` (or `reviewer_model=default` etc.) to let OpenCode
+  use its own configured default, recorded as unresolved.
+- Quota and rate-limit fallback: when a fresh turn on the default model fails
+  on quota or rate limits, the runner retries in a new session on
+  `opencode/mimo-v2.6-flash-free`, then `opencode/deepseek-v4-flash-free`
+  (`--fallback-model` to choose, `--no-fallback` to disable). Resumed sessions
+  and builds that changed the checkout never fall back. Every attempt is
+  recorded in `fallback_attempts`.
 
 ## [0.1.0] - 2026-09-21
 

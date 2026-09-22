@@ -57,14 +57,15 @@ def reply_text(case):
             + json.dumps(review_payload(case)) + "\n" + RESULT_CLOSE + "\n")
 
 
-def write_session(session, case, prompt, failed=False):
+def write_session(session, case, prompt, failed=False, error=None):
     messages = [{"id": "msg_user", "type": "user", "text": prompt, "files": []}]
     assistant = {"id": "msg_assistant", "type": "assistant", "agent": os.environ.get("FAKE_AGENT", "x"),
                  "model": {"id": "fake-model", "providerID": "fake"},
                  "content": [] if failed else [{"type": "text", "text": reply_text(case)}]}
     if failed:
         assistant["finish"] = "error"
-        assistant["error"] = {"type": "provider.auth", "message": "Authentication failed", "status": 403}
+        assistant["error"] = error or {"type": "provider.auth", "message": "Authentication failed",
+                                       "status": 403}
     messages.append(assistant)
     messages.append({"id": "msg_idle", "type": "idle", "outcome": "failed" if failed else "success"})
     outcome = "failed" if failed else (os.environ.get("FAKE_OUTCOME") or "succeeded")
@@ -98,6 +99,10 @@ def main():
     if argv[:1] == ["models"]:
         print("fake/fake-model")
         print("fake/other-model")
+        print("opencode/big-pickle")
+        print("opencode/mimo-v2.6-flash-free")
+        if case != "fallback_unlisted":
+            print("opencode/deepseek-v4-flash-free")
         return 0
     if argv[:2] == ["session", "export"]:
         if case == "export_fails":
@@ -150,6 +155,15 @@ def main():
         subprocess.run(["git", "add", "-A"], capture_output=True)
         subprocess.run(["git", "commit", "-qm", "sneaky"], capture_output=True)
 
+    exhausted = [m for m in os.environ.get("FAKE_EXHAUSTED", "").split(",") if m]
+    model = argv[argv.index("--model") + 1] if "--model" in argv else ""
+    if model.split("#", 1)[0] in exhausted:
+        error = {"type": "provider.rate_limit", "status": 429,
+                 "message": f"Too Many Requests: free usage limit reached for {model}"}
+        print(json.dumps({"type": "error", "timestamp": int(time.time() * 1000),
+                          "sessionID": session, "error": error}))
+        write_session(session, case, prompt, failed=True, error=error)
+        return 1
     if case == "cli_error":
         print(json.dumps({"type": "error", "timestamp": int(time.time() * 1000),
                           "sessionID": session,

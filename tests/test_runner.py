@@ -262,11 +262,83 @@ class InvocationTests(Base):
         self.assertEqual(record["requested_variant"], "thinking")
         self.assertEqual(record["observed_models"], ["fake/fake-model"])
 
-    def test_unpinned_model_leaves_selection_to_opencode(self):
+    def test_omitted_model_pins_the_default(self):
         code, record, _, _, _ = self.invoke()
+        self.assertEqual(code, 0, record)
+        argv = self.last_argv()
+        self.assertEqual(argv[argv.index("--model") + 1], runner.DEFAULT_MODEL)
+        self.assertEqual(record["requested_model"], "opencode/big-pickle")
+
+    def test_default_keyword_leaves_selection_to_opencode(self):
+        code, record, _, _, _ = self.invoke(extra=("--model", "default"))
         self.assertEqual(code, 0, record)
         self.assertNotIn("--model", self.last_argv())
         self.assertIsNone(record["requested_model"])
+
+    def test_quota_on_the_default_model_falls_back_in_a_fresh_session(self):
+        code, record, run_dir, _, _ = self.invoke(env={"FAKE_EXHAUSTED": "opencode/big-pickle"})
+        self.assertEqual(code, 0, record)
+        self.assertEqual(record["requested_model"], "opencode/big-pickle")
+        self.assertEqual(record["model"], "opencode/mimo-v2.6-flash-free")
+        [failed] = record["fallback_attempts"]
+        self.assertEqual(failed["model"], "opencode/big-pickle")
+        self.assertIn("usage limit", failed["error"])
+        self.assertTrue((run_dir / "attempt-1" / "stdout.txt").is_file())
+        argv = self.last_argv()
+        self.assertEqual(argv[argv.index("--model") + 1], "opencode/mimo-v2.6-flash-free")
+        self.assertNotIn("--session", argv)
+
+    def test_fallback_chain_skips_unlisted_models_and_reports_exhaustion(self):
+        exhausted = "opencode/big-pickle,opencode/mimo-v2.6-flash-free"
+        code, record, _, _, _ = self.invoke(env={"FAKE_EXHAUSTED": exhausted})
+        self.assertEqual(code, 0, record)
+        self.assertEqual(record["model"], "opencode/deepseek-v4-flash-free")
+        self.assertEqual(len(record["fallback_attempts"]), 2)
+        code, record, _, _, _ = self.invoke(case="fallback_unlisted", env={"FAKE_EXHAUSTED": exhausted})
+        self.assertEqual(code, 1)
+        self.assertIn("No fallback model is listed", record["error"])
+        self.assertEqual(record["fallback_attempts"][-1]["skipped"], "not listed by `opencode models`")
+
+    def test_non_quota_failures_never_fall_back(self):
+        code, record, _, _, _ = self.invoke(case="cli_error")
+        self.assertEqual(code, 1)
+        self.assertEqual(record["fallback_attempts"], [])
+        self.assertIn("Authentication failed", record["error"])
+
+    def test_explicit_model_and_no_fallback_do_not_fall_back(self):
+        env = {"FAKE_EXHAUSTED": "fake/fake-model,opencode/big-pickle"}
+        code, record, _, _, _ = self.invoke(extra=("--model", "fake/fake-model"), env=env)
+        self.assertEqual(code, 1)
+        self.assertEqual(record["fallback_models"], [])
+        code, record, _, _, _ = self.invoke(extra=("--no-fallback",), env=env)
+        self.assertEqual(code, 1)
+        self.assertEqual(record["fallback_attempts"], [])
+        code, record, _, _, _ = self.invoke(
+            extra=("--model", "fake/fake-model", "--fallback-model", "fake/other-model"), env=env)
+        self.assertEqual(code, 0, record)
+        self.assertEqual(record["model"], "fake/other-model")
+
+    def test_resume_stays_on_the_fallback_model_and_never_falls_back(self):
+        _, first, first_dir, _, _ = self.invoke(env={"FAKE_EXHAUSTED": "opencode/big-pickle"})
+        self.assertEqual(first["model"], "opencode/mimo-v2.6-flash-free")
+        code, second, _, _, _ = self.invoke(extra=("--resume", str(first_dir / "result.json")),
+                                            env={"FAKE_EXHAUSTED": "opencode/big-pickle"})
+        self.assertEqual(code, 0, second)
+        argv = self.last_argv()
+        self.assertEqual(argv[argv.index("--model") + 1], "opencode/mimo-v2.6-flash-free")
+        code, third, _, _, _ = self.invoke(
+            extra=("--resume", str(first_dir / "result.json")),
+            env={"FAKE_EXHAUSTED": "opencode/mimo-v2.6-flash-free"})
+        self.assertEqual(code, 1)
+        self.assertEqual(third["fallback_attempts"], [])
+
+    def test_a_build_that_left_changes_does_not_fall_back(self):
+        code, record, _, _, _ = self.invoke(
+            mode="build", case="build",
+            extra=("--builder", "opencode", "--unreviewed-spec", "--proof", "true"),
+            env={"FAKE_EXHAUSTED": "opencode/big-pickle"})
+        self.assertEqual(code, 1)
+        self.assertIn("Not falling back", record["error"])
 
 
 # --------------------------------------------------------------------- permissions

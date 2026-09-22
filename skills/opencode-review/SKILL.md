@@ -9,7 +9,7 @@ Direct entry point: you already have a plan, or a clear enough idea to write one
 
 Load [openclaude-loop](../openclaude-loop/SKILL.md) and start at `mode=review`. The shared workflow, the security boundary and the runner all live in that sibling skill; install it alongside this one. Read [the runtime reference](../openclaude-loop/references/runtime.md) and resolve the runner from the installed skill, never from the repository under review.
 
-Preserve `PLAN_FILE`, `LOG_FILE`, `MAX_ROUNDS` / `rounds`, and any explicit `reviewer_model` and `reviewer_variant`. Use the actual resolved plan path on every round and on any build handoff.
+Preserve `PLAN_FILE`, `LOG_FILE`, `MAX_ROUNDS` / `rounds`, and any explicit `reviewer_model`, `reviewer_variant` and `fallback_models`. Use the actual resolved plan path on every round and on any build handoff.
 
 Draft `PLAN.md` first if the user has only described the work — objective, scope, non-goals, architecture, affected files, sequence, edge cases, security considerations, acceptance criteria and proof commands. Fill material gaps with the user, but do not restart a full interview when the supplied plan is already adequate.
 

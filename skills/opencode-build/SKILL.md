@@ -9,7 +9,7 @@ Direct entry point: the builder is explicitly OpenCode, and Claude Code is the i
 
 Load [the build reference](../openclaude-loop/references/build.md), [the runtime reference](../openclaude-loop/references/runtime.md) and [the security model](../openclaude-loop/references/security.md) from the sibling `openclaude-loop` skill; install it alongside this one.
 
-Preserve `SPEC_FILE` (mapped to the runner's `--plan`), `LOG_FILE`, `PROOF_CMD`, `MAX_FIX_ROUNDS`, and any explicit `builder_model` and `builder_variant`. The spec may have any filename — never silently substitute `PLAN.md`.
+Preserve `SPEC_FILE` (mapped to the runner's `--plan`), `LOG_FILE`, `PROOF_CMD`, `MAX_FIX_ROUNDS`, and any explicit `builder_model`, `builder_variant` and `fallback_models`. The spec may have any filename — never silently substitute `PLAN.md`.
 
 Before delegating, settle any consequential decision the spec still leaves open. Do not build by inventing missing requirements; if writing the spec forces design choices, that is `openclaude-loop` first. Use the current valid plan approval when this follows a review. For an explicitly requested standalone work order, use `--unreviewed-spec` and record that no plan review happened.
 

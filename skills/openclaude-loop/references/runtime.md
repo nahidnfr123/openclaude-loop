@@ -39,9 +39,17 @@ python RUNNER proof    --repo REPO --proof "npm test" --base BASE_COMMIT --artif
 
 ## Models and variants
 
-Omit `--model` to let OpenCode use its configured default; the record then says the model is unresolved. Pass `--model provider/model` for an explicit choice and `--variant NAME` for a variant — OpenCode expresses this as `provider/model#variant`, and the runner assembles it. Repeat the same model and variant when resuming; a mismatch is refused before launch rather than silently changing agents mid-conversation.
+Omit `--model` to use the plugin default, `opencode/big-pickle`. Pass `--model default` to let OpenCode use its configured default; the record then says the model is unresolved. Pass `--model provider/model` for another explicit choice and `--variant NAME` for a variant — OpenCode expresses this as `provider/model#variant`, and the runner assembles it. Repeat the same model and variant when resuming; a mismatch is refused before launch rather than silently changing agents mid-conversation.
 
-There is no automatic fallback. A model that is unavailable is an error, not an invitation to use a different one.
+Fallback is narrow and always recorded. When a **fresh** turn fails with a quota or rate-limit error (429, 402, rate limit, usage limit, quota, overloaded), the runner retries in a new session on each `--fallback-model` in order. With `--model` omitted, the chain defaults to `opencode/mimo-v2.6-flash-free`, then `opencode/deepseek-v4-flash-free`. An explicit `--model` gets no fallback unless `--fallback-model` is passed, and `--no-fallback` disables it entirely. A fallback model that `opencode models` does not list is skipped.
+
+The runner never falls back:
+
+- on any other error (authentication, timeout, malformed result, wrong session);
+- inside a resumed session: `--resume` reuses the model the session actually ran on, recorded as `model`;
+- after a delegated build has left changes or moved `HEAD`.
+
+The result keeps `requested_model` as asked, sets `model` to what actually produced the turn, and lists every failed or skipped model under `fallback_attempts`. Each failed attempt's stdout, stderr and export are moved into `attempt-N/` in the artifact directory. An unavailable model named with `--model` is still an error, never an invitation to use a different one.
 
 ## Sessions
 

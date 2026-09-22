@@ -36,11 +36,14 @@ Echo the resolved values before starting.
 | `MAX_INSPECTION_ROUNDS` | `2` | Initial inspection plus one after accepted fixes |
 | `inspect` | `on` | `off` is a logged explicit opt-out only |
 | `research` | proportionate | `none`, `web`, or explicitly opted-in `deep` |
-| `reviewer_model` / `builder_model` / `inspector_model` | OpenCode default | `provider/model`, mapped to `--model` |
+| `reviewer_model` / `builder_model` / `inspector_model` | `opencode/big-pickle` | `provider/model`, mapped to `--model`; `default` defers to OpenCode's configured default |
 | `reviewer_variant` / `builder_variant` / `inspector_variant` | none | mapped to `--variant` (sent as `provider/model#variant`) |
+| `fallback_models` | `opencode/mimo-v2.6-flash-free,opencode/deepseek-v4-flash-free` when no model is given, otherwise none | comma list, each mapped to `--fallback-model`; `none` maps to `--no-fallback` |
 | `PROOF_CMD` | derived from the repo | Exact verification command |
 
-If no OpenCode model is given, let OpenCode use its configured default and record it as unresolved. If an explicit model is requested and unavailable, stop and say so. Never substitute another model or provider silently.
+If no OpenCode model is given, the runner pins `opencode/big-pickle`. Only when the user asks for `default` does OpenCode choose its own model, which is then recorded as unresolved. If an explicit model is requested and unavailable, stop and say so. Never substitute another model or provider silently.
+
+The runner falls back on its own only when a **fresh** turn fails on quota or rate limits, trying each fallback model in a new session. It never falls back for any other error. It never falls back inside a resumed session, and it never falls back after a delegated build has changed the checkout. When a result has a non-empty `fallback_attempts`, tell the user which model failed and which model produced the verdict, and record both in `LOG_FILE`. A resumed round stays on the model its session ran on. If that model later runs out, report the failure and offer a fresh review round rather than retrying.
 
 Preserve existing authorization. A request to plan does not authorize building; a request to plan and implement does. Committing, pushing and publishing follow the user's separate authorization and are never implied by running this loop.
 

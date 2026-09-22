@@ -189,8 +189,9 @@ Plain language works too: *"openclaude this feature"*, *"openclaude this plan"*,
 | `MAX_INSPECTION_ROUNDS` | `2` | initial inspection plus one after fixes |
 | `inspect` | `on` | `off` is a logged explicit opt-out only |
 | `research` | proportionate | `none`, `web`, or explicitly opted-in `deep` |
-| `reviewer_model`, `builder_model`, `inspector_model` | OpenCode default | `provider/model` |
+| `reviewer_model`, `builder_model`, `inspector_model` | `opencode/big-pickle` | `provider/model`, or `default` for OpenCode's configured default |
 | `reviewer_variant`, `builder_variant`, `inspector_variant` | none | sent as `provider/model#variant` |
+| `fallback_models` | `opencode/mimo-v2.6-flash-free,opencode/deepseek-v4-flash-free` with the default model, else none | tried in order when a fresh turn hits quota or rate limits; `none` disables |
 | `PROOF_CMD` | derived from the repo | exact verification command |
 
 Example:
@@ -209,7 +210,9 @@ This matters for reading any verdict honestly.
 
 So the independence of a review depends entirely on how you configured OpenCode. Point it at the same provider as your session and you get a second *agent* with a fresh context and no authorship bias — genuinely useful, but not a second *provider*. The plugin calls OpenCode the *independent agent*, the *external reviewer* or the *second agent*, and claims a cross-provider review only when the configured model demonstrably comes from a different provider.
 
-Requested and observed models are recorded separately, and an unresolved default is reported as unresolved. If you name a model OpenCode does not have, the run stops. **Nothing is ever silently substituted.**
+Unless you name another model, the plugin pins `opencode/big-pickle`; pass `default` to let OpenCode choose. Requested and observed models are recorded separately, and an unresolved default is reported as unresolved. If you name a model OpenCode does not have, the run stops.
+
+When a fresh turn on the default model fails on quota or rate limits, the runner retries in a new session on `opencode/mimo-v2.6-flash-free`, then `opencode/deepseek-v4-flash-free`. It skips any fallback that `opencode models` does not list. It never falls back on other errors, inside a resumed session, or after a delegated build has touched the checkout. Every fallback is recorded: `requested_model` is what you asked for, `model` is what answered, and `fallback_attempts` lists what failed and why. **Nothing is ever silently substituted.**
 
 ## Permission model
 
